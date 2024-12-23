@@ -1,701 +1,749 @@
-import { RiPencilFill } from 'react-icons/ri';
-import user from '../../assets/image.svg';
-import { CashflowChart } from '../../components/cashflow-chart/cashflow-chart';
-import { LineChartCard } from '../../components/linechart';
-import { BarChartComponent } from '../../components/barchart';
-import DataTable from '../../components/Table';
-import useBusinessStore from '../../store/buisnessSrore';
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import Card from "../../NewComponents/Card";
+import CurrentCashflow from "../../NewComponents/CurrentCashflow";
+import ExpectedSalary from "../../NewComponents/ExpectedSalary";
+import GrossRevenue from "../../NewComponents/GrossRevenue";
+import AskingPrice from "../../NewComponents/AskingPrice";
+import SDE from "../../NewComponents/SDE";
+import DSCRCalculator from "../../NewComponents/DSCRCalculator";
+import ProjectedCashflow from "../../NewComponents/ProjectedCashflow";
+import GrossMultiple from "../../NewComponents/GrossMultiple";
+import SDEMultiple from "../../NewComponents/SDEMultiple";
+import SBALoanPayment from "../../NewComponents/SBALoanPayment";
+import AdditionalLoanPayment from "../../NewComponents/AdditionalLoanPayment";
+import TotalDebtPayments from "../../NewComponents/TotalDebtPayments";
+import ProjectedNetProfitMargin from "../../NewComponents/ProjectedNetProfitMargin";
+import CustomMetric from "../../NewComponents/CustomMetric";
+import TopBar from "../../NewComponents/TopBar";
+import { Button } from "../../components/ui/button";
+import MetricCard from "../../NewComponents/MetricCard";
+import { useParams, useNavigate } from "react-router-dom";
+import useBusinessStore from "../../store/buisnessSrore";
+import ReportModal from "../../NewComponents/ReportModal";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import CustomModal from '../../components/modal';
-import { jsPDF } from 'jspdf';
-import * as XLSX from 'xlsx';
 
-function Dashboard() {
-  const { fetchBusiness, updateBusiness, business, isLoading, error } =
-    useBusinessStore();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [reportFormat, setReportFormat] = useState('csv');
-  const { id } = useParams();
 
-  const user_id = localStorage.getItem('user_id');
-  const token = localStorage.getItem('token');
-
+const App: React.FC = () => {
+  const params = useParams();
+  const { fetchBusiness, updateBusiness, addBusiness } = useBusinessStore();
+  const businessid = params.id;
+  const [businessData, setBusinessData] = useState<any>();
+  const [hasChanges, setHasChanges] = useState<boolean>(false);
+  const [isUnAdded, setIsUnAdded] = useState<boolean>(false);
+  const [reportModalOpen, setReportModalOpen] = useState<boolean>(false);
   const navigate = useNavigate();
-
-  const toggleDropdown = () => {
-    setDropdownOpen(!dropdownOpen);
-  };
-
-  const [formData, setFormData] = useState({
-    business_name: '',
-    business_listing_price: '',
-    business_gross_revenue: '',
-    business_cash_flow: '',
-    business_notes: '',
-    loan_sba_amount: '',
-    loan_sba_rate: '',
-    loan_sba_term: '',
-    loan_seller_amount: '',
-    loan_seller_rate: '',
-    loan_seller_term: '',
-    loan_down_payment: '',
-    desired_owner_salary: '',
-    additional_startup_capital: '',
-    additional_capital_expenses: '',
-    expected_annual_growth_rate: '',
+  const [state, setState] = useState({
+    currentCashflow: 0,
+    expectedSalary: 0,
+    grossRevenue: 0,
+    askingPrice: 0,
+    sde: 0,
+    projectedCashflow: 0,
+    totalDebtPayments: 0,
+    sbaLoanPayment: 0,
+    additionalLoanPayment: 0,
+    customMetric: 0,
+    projectedNetProfitMargin: 0,
+    dscr: 0,
+    grossMultiple: 0,
+    sdeMultiple: 0,
+    loan_sba_amount: 0,
+    loan_sba_term: 0,
+    loan_sba_rate: 0,
+    additional_loan_term: 0,
+    additional_loan_rate: 0,
+    additional_loan_amount: 0,
+    newExpenses: 0,
+    additionalDebt: 0,
+    notes: {
+      currentCashflow: [],
+      expectedSalary: [],
+      grossRevenue: [],
+      askingPrice: [],
+      sde: [],
+      projectedCashflow: [],
+      totalDebtPayments: [],
+      sbaLoanPayment: [],
+      additionalLoanPayment: [],
+      customMetric: [],
+      projectedNetProfitMargin: [],
+      dscr: [],
+      grossMultiple: [],
+      sdeMultiple: [],
+      business: [],
+    },
   });
 
-  const openModal = () => {
-    setIsModalOpen(true);
-  };
+  const [customMetrics, setCustomMetrics] = useState<
+    {
+      metricName: string;
+      metricValue: string;
+      metricType: "X" | "$" | "%" | "N";
+      notes: string[];
+    }[]
+  >([]);
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-  };
+  const [cardOrder, setCardOrder] = useState([
+    "currentCashflow",
+    "expectedSalary",
+    "grossRevenue",
+    "askingPrice",
+    "sde",
+    "DSCRCalculator",
+    "ProjectedCashflow",
+    "GrossMultiple",
+    "SDEMultiple",
+    "SBALoanPayment",
+    "AdditionalLoanPayment",
+    "TotalDebtPayments",
+    "ProjectedNetProfitMargin",
+  ]);
+  useEffect(() => {
+    const fetchData = async () => {
+      const data = await fetchBusiness(businessid || "");
+      console.log(data)
+      setBusinessData(data?.business);
+      setState({
+        ...state,
+        currentCashflow: data?.business?.data?.current_cashflow?.value || 0,
+        expectedSalary: data?.business?.data?.expected_salary?.value || 0,
+        grossRevenue: data?.business?.data?.gross_revenue?.value || 0,
+        askingPrice: data?.business?.data?.asking_price?.value || 0,
+        sbaLoanPayment: data?.business?.data?.sba_loan_payment?.value || 0,
+        loan_sba_term: data?.business?.data?.loan_sba?.term || 0,
+        loan_sba_rate: data?.business?.data?.loan_sba?.rate || 0,
+        additional_loan_amount:
+          data?.business?.data?.additional_loan.amount || 0,
+        additional_loan_term: data?.business?.data?.additional_loan?.term || 0,
+        additional_loan_rate: data?.business?.data?.additional_loan?.rate || 0,
+        additionalLoanPayment:
+          data?.business?.data?.additional_loan?.amount || 0,
+        totalDebtPayments:
+          data?.business?.data?.total_debt_payments?.value || 0,
+        projectedNetProfitMargin:
+          data?.business?.metrics?.net_profit_margin?.value || 0,
+        dscr: data?.business?.metrics?.dscr?.value || 0,
+        grossMultiple: data?.business?.metrics?.gross_multiple?.value || 0,
+        sdeMultiple: data?.business?.metrics?.sde_multiple?.value || 0,
+        sde: data?.business?.data?.sde?.value || 0,
+        projectedCashflow: data?.business?.data?.projected_cashflow?.value || 0,
+        loan_sba_amount: data?.business?.data?.loan_sba?.amount || 0,
+        newExpenses: data?.business?.data?.new_expenses?.value || 0,
+        additionalDebt: data?.business?.data?.additional_debt?.value || 0,
+        notes: {
+          ...state.notes,
+          currentCashflow: data?.business?.data?.current_cashflow?.notes || [] ,
+          expectedSalary: data?.business?.data?.expected_salary?.notes || [],
+          grossRevenue: data?.business?.data?.gross_revenue?.notes || [],
+          askingPrice: data?.business?.data?.asking_price?.notes || [],
+          business: data?.business?.data?.business_notes || [],
+          sde: data?.business?.data?.sde?.notes || [],
+          sdeMultiple: data?.business?.data?.sde_multiple?.notes || [],
+          projectedCashflow: data?.business?.data?.projected_cashflow?.notes || [],
+          totalDebtPayments: data?.business?.data?.total_debt_payments?.notes || [],
+          sbaLoanPayment: data?.business?.data?.loan_sba?.notes || [],
+          additionalLoanPayment: data?.business?.data?.additional_loan?.notes || [],
+          projectedNetProfitMargin: data?.business?.data?.projected_net_profit_margin?.notes || [],
+          grossMultiple: data?.business?.data?.gross_multiple?.notes || [],
+          dscr: data?.business?.data?.dscr?.notes || [],
+        },
+      });
+
+      setCustomMetrics(
+        data?.business?.data?.custom_fields?.map((field: any) => ({
+          metricName: field.name,
+          metricValue: field.value,
+          metricType: field.type,
+          notes: field.notes,
+        })) || []
+      );
+      
+    };
+    
+    if (localStorage.getItem("user_id")) {
+      
+      fetchData();
+      
+      if (localStorage.getItem("business_payload")) {
+        setIsUnAdded(true);
+        const business = JSON.parse(localStorage.getItem("business_payload")!);
+        setBusinessData({ data: business });
+        setState({
+          ...state,
+          currentCashflow: business?.current_cashflow.value || 0,
+          expectedSalary: business?.expected_salary.value || 0,
+          grossRevenue: business?.gross_revenue.value || 0,
+          askingPrice: business?.asking_price.value || 0,
+          sbaLoanPayment: business?.sba_loan_payment.value || 0,
+          loan_sba_term: business?.loan_sba.term || 0,
+          loan_sba_rate: business?.loan_sba.rate || 0,
+          additional_loan_amount: business?.additional_loan.amount || 0,
+          additional_loan_term: business?.additional_loan.term || 0,
+          additional_loan_rate: business?.additional_loan.rate || 0,
+          additionalLoanPayment: business?.additional_loan.amount || 0,
+          totalDebtPayments:
+            business?.loan_sba.amount + business?.additional_loan.amount || 0,
+          projectedNetProfitMargin: business?.net_profit_margin || 0,
+          dscr: business?.dscr || 0,
+          sdeMultiple: business?.sde_multiple || 0,
+          sde: business?.sde.value || 0,
+          projectedCashflow: business?.projected_cashflow.value || 0,
+          loan_sba_amount: business?.loan_sba.amount || 0,
+          newExpenses: business?.new_expenses.value || 0,
+          additionalDebt: business?.additional_debt.value || 0,
+          notes: {
+            ...state.notes,
+            currentCashflow: business?.current_cashflow?.notes || [],
+            expectedSalary: business?.data?.expected_salary?.notes || [],
+            grossRevenue: business?.gross_revenue?.notes || [],
+            askingPrice: business?.asking_price?.notes || [],
+            business: business?.business_notes || [],
+          },
+        });
+      }
+    }else{      
+      const business = localStorage.getItem("business");
+      setIsUnAdded(true);
+      if (business) {
+        setBusinessData({ data: JSON.parse(business) });
+        setState({
+          ...state,
+          currentCashflow: JSON.parse(business)?.current_cashflow.value || 0,
+          askingPrice: JSON.parse(business)?.asking_price.value || 0,
+        });
+        console.log("business", JSON.parse(business));
+      }
+    }
+  }, []);
+
+  function calculateYearlyPayment(
+    loan_amount: number,
+    loan_term: number,
+    loan_rate: number
+  ) {
+    if (loan_amount <= 0 || loan_term <= 0 || loan_rate <= 0) {
+      return 0; // No payment needed if any parameter is zero or negative
+    }
+
+    // Convert the annual rate to a decimal
+    const r = loan_rate / 100;
+
+    // Calculate yearly payment using the annuity formula
+    const yearlyPayment = (r * loan_amount) / (1 - Math.pow(1 + r, -loan_term));
+
+    return Number(yearlyPayment.toFixed(2)); // Round to 2 decimal places
+  }
 
   useEffect(() => {
-    setFormData({
-      business_name: business?.business?.data?.business_name,
-      business_listing_price: business?.business?.data?.business_listing_price,
-      business_gross_revenue: business?.business?.data?.business_gross_revenue,
-      business_cash_flow: business?.business?.data?.business_cash_flow,
-      business_notes: business?.business?.data?.business_notes,
-      loan_sba_amount: business?.business?.data?.loan_sba_amount,
-      loan_sba_rate: business?.business?.data?.loan_sba_rate,
-      loan_sba_term: business?.business?.data?.loan_sba_term,
-      loan_seller_amount: business?.business?.data?.loan_seller_amount,
-      loan_seller_rate: business?.business?.data?.loan_seller_rate,
-      loan_seller_term: business?.business?.data?.loan_seller_term,
-      loan_down_payment: business?.business?.data?.loan_down_payment,
-      desired_owner_salary: business?.business?.data?.desired_owner_salary,
-      additional_startup_capital:
-        business?.business?.data?.additional_startup_capital,
-      additional_capital_expenses:
-        business?.business?.data?.additional_capital_expenses,
-      expected_annual_growth_rate:
-        business?.business?.data?.expected_annual_growth_rate,
-    });
-  }, [business]);
+    const calculateMetrics = () => {
+      const additionalLoanPayment = Math.round( calculateYearlyPayment(
+        state.additional_loan_amount,
+        state.additional_loan_term,
+        state.additional_loan_rate
+        ));
+      const sbaLoanPayment = Math.round(calculateYearlyPayment(
+        state.loan_sba_amount,
+        state.loan_sba_term,
+        state.loan_sba_rate
+      ));
 
-  const handleInputChange = (e: { target: { name: any; value: any } }) => {
-    const { name, value } = e.target;
-    setFormData((prevState) => ({
+      const dscr =
+        state.totalDebtPayments > 0
+          ? Number(
+              (
+                (state.currentCashflow - state.expectedSalary) /
+                state.totalDebtPayments
+              ).toFixed(4)
+            )
+          : 0;
+
+      const projectedCashflow =
+        state.currentCashflow - state.totalDebtPayments - state.newExpenses;
+
+      const grossMultiple =
+        state.grossRevenue > 0
+          ? Number((state.askingPrice / state.grossRevenue).toFixed(2))
+          : 0;
+
+      const sdeMultiple =
+        state.sde > 0 ? Number((state.askingPrice / state.sde).toFixed(2)) : 0;
+
+      const projectedNetProfitMargin =
+        state.grossRevenue > 0
+          ? Number(((projectedCashflow / state.grossRevenue) * 100).toFixed(2))
+          : 0;
+
+      setState((prevState) => ({
+        ...prevState,
+        // totalDebtPayments,
+        dscr,
+        projectedCashflow,
+        grossMultiple,
+        sdeMultiple,
+        projectedNetProfitMargin,
+        additionalLoanPayment,
+        sbaLoanPayment,
+      }));
+    };
+
+    calculateMetrics();
+  }, [
+    state.totalDebtPayments,
+    state.currentCashflow,
+    state.expectedSalary,
+    state.totalDebtPayments,
+    state.askingPrice,
+    state.grossRevenue,
+    state.sde,
+    state.loan_sba_amount,
+    state.additional_loan_amount,
+    state.newExpenses,
+    state.additionalDebt,
+  ]);
+
+  useEffect(() => {
+    const totalDebtPayments =
+      Number((state.sbaLoanPayment + state.additionalLoanPayment).toFixed(2)) ||
+      0;
+    setState((prevState) => ({
       ...prevState,
-      [name]: value,
+      totalDebtPayments,
+    }));
+  }, [state.additionalLoanPayment, state.sbaLoanPayment]);
+
+  const handleSave = async () => {
+    let payload: any = {
+      current_cashflow: {
+        value: state.currentCashflow,
+        notes: state.notes.currentCashflow,
+      },
+      expected_salary: {
+        value: state.expectedSalary,
+        notes: state.notes.expectedSalary,
+      },
+      gross_revenue: {
+        value: state.grossRevenue,
+        notes: state.notes.grossRevenue,
+      },
+      asking_price: {
+        value: state.askingPrice,
+        notes: state.notes.askingPrice,
+      },
+      loan_sba: {
+        amount: state.loan_sba_amount,
+        term: state.loan_sba_term,
+        rate: state.loan_sba_rate,
+        notes: state.notes.sbaLoanPayment,
+      },
+      additional_loan: {
+        amount: state.additional_loan_amount,
+        term: state.additional_loan_term,
+        rate: state.additional_loan_rate,
+        notes: state.notes.additionalLoanPayment,
+      },
+      sde: { value: state.sde, notes: state.notes.sde },
+      dscr: { value: state.dscr, notes: state.notes.dscr },
+      gross_multiple: { value: state.grossMultiple, notes: state.notes.grossMultiple },
+      sde_multiple: { value: state.sdeMultiple, notes: state.notes.sdeMultiple },
+      projected_cashflow: { value: state.projectedCashflow, notes: state.notes.projectedCashflow },
+      projected_net_profit_margin: { value: state.projectedNetProfitMargin, notes: state.notes.projectedNetProfitMargin },
+      total_debt_payments: { value: state.totalDebtPayments, notes:state.notes.totalDebtPayments },
+      sba_loan_payment: { value: state.sbaLoanPayment, notes: state.notes.sbaLoanPayment },
+      additional_loan_payment: { value: state.additionalLoanPayment, notes: state.notes.additionalLoanPayment },
+      new_expenses: { value: state.newExpenses },
+      additional_debt: { value: state.additionalDebt },
+    };
+
+    if (customMetrics.length >= 0) {
+      payload = {
+        ...payload,
+        custom_fields: customMetrics.map((metric) => ({
+          name: metric.metricName,
+          value: metric.metricValue,
+          type: metric.metricType,
+          notes: metric.notes,
+        })),
+      };
+    }
+    if (localStorage.getItem("user_id")) {
+      if (isUnAdded) {
+        const updated = await addBusiness({
+          ...businessData?.data,
+          ...payload,
+        });
+        console.log("updated", updated);
+        setHasChanges(false);
+        setIsUnAdded(false);
+        localStorage.removeItem("business_payload");
+        localStorage.removeItem("business");
+        if(updated.business){
+          toast.success("Business added successfully!");
+        } else {
+          toast.error("Failed to add business!");
+        }
+      } else {
+        const updated = await updateBusiness(businessid || "", payload);
+        console.log("updated", updated);
+        setHasChanges(false);
+        if(updated.updatedBusiness){
+          toast.success("Business updated successfully!");
+        } else {
+          toast.error("Failed to update business!");
+        }
+      }
+    } else {
+      localStorage.setItem(
+        "business_payload",
+        JSON.stringify({ ...businessData?.data, ...payload })
+      );
+      toast.warn("Please login to save!");
+      navigate("/login");
+      setHasChanges(false);
+    }
+
+  };
+
+  const updateLoanSba = (value: {
+    amount: number;
+    term: number;
+    rate: number;
+  }) => {
+    setState((prevState) => ({
+      ...prevState,
+      loan_sba_amount: value.amount,
+      loan_sba_term: value.term,
+      loan_sba_rate: value.rate,
+    }));
+  };
+  const updateLoanAdditionalLoan = (value: {
+    amount: number;
+    term: number;
+    rate: number;
+  }) => {
+    setState((prevState) => ({
+      ...prevState,
+      additional_loan_amount: value.amount,
+      additional_loan_term: value.term,
+      additional_loan_rate: value.rate,
     }));
   };
 
-  useEffect(() => {
-    if (id) {
-      fetchBusiness(id);
-    }
-  }, [fetchBusiness, id]);
-
-  useEffect(() => {
-    if (error) {
-      toast.error(`Error: ${error}`);
-    }
-  }, [error]);
-
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-  const sensitivityAnalysis = business?.business?.metrics?.sensitivityAnalysis;
-
-  const chartData =
-    business?.business?.metrics.advancedProjections?.map(
-      ({ year, expenses }: { year: number; expenses: number }) => ({
-        year,
-        expenses,
-      })
-    ) || [];
-  console.log(chartData);
-
-  const LineChartData =
-    business?.business?.metrics.advancedProjections?.map(
-      ({ year, cash_flow }: { year: number; cash_flow: number }) => ({
-        year,
-        cash_flow,
-      })
-    ) || [];
-
-  const cashFlowChartData =
-    business?.business?.metrics.advancedProjections?.map(
-      ({ year, revenue }: { year: number; revenue: number }) => ({
-        year,
-        revenue, // Keep revenue as a number
-      })
-    ) || [];
-
-  const handleUpdate = async () => {
-    if (!id) return;
-    try {
-      const res = await updateBusiness(id, formData);
-      if (res) {
-        fetchBusiness(id);
-      }
-      toast.success('Business data updated successfully!');
-    } catch (error: any) {
-      toast.error(`Error: ${error.message}`);
-    }
+  const updateNotes = async (key: string, value: string) => {
+    setHasChanges(true);
+    setState((prevState) => ({
+      ...prevState,
+      notes: {
+        ...prevState.notes,
+        [key]: value,
+      },
+    }));
   };
 
-  const handleSave = async () => {
-    await handleUpdate();
-    closeModal();
+
+
+  const metricCards = cardOrder.map((id) => ({
+    id,
+    name: id.replace(/([A-Z])/g, " $1"), // Convert camelCase to readable text
+    value: state[id as keyof typeof state],
+  }));
+
+  const updateState = async (key: string, value: number | string) => {
+    setHasChanges(true);
+    setState((prevState) => ({ ...prevState, [key]: value }));
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('user_id');
-    window.location.href = '/';
+  const handleDragEnd = (result: any) => {
+    if (!result.destination) return;
+
+    const newOrder = Array.from(cardOrder);
+    const [moved] = newOrder.splice(result.source.index, 1);
+    newOrder.splice(result.destination.index, 0, moved);
+
+    setCardOrder(newOrder);
   };
 
-  const generatePDF = (data: any) => {
-    let doc: any = new jsPDF();
-    doc.setFontSize(14);
-    doc.text('Business Report', 10, 10);
-    const pageHeight = doc.internal.pageSize.height;
-    let y = 20;
-    let page = 1;
-    doc.page = page;
-    Object.entries(data[0]).forEach(([key, value]) => {
-      if (y > pageHeight - 20) {
-        doc.addPage();
-        y = 20;
-      }
-      doc.setFontSize(12);
-      doc.text(`${key}: ${value}`, 10, y);
-      y += 10;
-    });
-
-    if (page > 1) {
-      doc.save(`business_report_${page}.pdf`);
-    } else {
-      doc.save('business_report.pdf');
-    }
-  };
-
-  const downloadExcel = (data: any, filename = 'business_report.xlsx') => {
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Report');
-    XLSX.writeFile(wb, filename);
-  };
-
-  const handleGenerateReport = () => {
-    if (business?.business?.metrics) {
-      const {
-        roi,
-        dscr,
-        npv,
-        irr,
-        break_even_revenue,
-        payback_period,
-        gross_profit_margin,
-        net_profit_margin,
-        equity_multiple,
-        sde_multiple,
-        cash_flow_after_purchase,
-        yearly_debt_payments,
-        sellerLoadPayment,
-        cash_flow_projection = [],
-        advancedProjections = [],
-        sensitivityAnalysis: {
-          Pessimistic: {
-            growth_rate: growth_rate_pessimistic = 0,
-            npv_low_discount: npv_low_pessimistic = 0,
-            npv_medium_discount: npv_medium_pessimistic = 0,
-            npv_high_discount: npv_high_pessimistic = 0,
-          } = {},
-          Base: {
-            growth_rate: growth_rate_base = 0,
-            npv_low_discount: npv_low_base = 0,
-            npv_medium_discount: npv_medium_base = 0,
-            npv_high_discount: npv_high_base = 0,
-          } = {},
-          Optimistic: {
-            growth_rate: growth_rate_optimistic = 0,
-            npv_low_discount: npv_low_optimistic = 0,
-            npv_medium_discount: npv_medium_optimistic = 0,
-            npv_high_discount: npv_high_optimistic = 0,
-          } = {},
-        } = {},
-      } = business.business.metrics;
-
-      // const formattedAdvancedProjections = advancedProjections
-      //   .map(
-      //     ({
-      //       year,
-      //       revenue,
-      //       expenses,
-      //       cash_flow,
-      //     }: {
-      //       year: number;
-      //       revenue: number;
-      //       expenses: number;
-      //       cash_flow: number;
-      //     }) =>
-      //       `Year ${year}:\n  Revenue: $${revenue.toFixed(2)}\n  Expenses: $${expenses.toFixed(2)}\n  Cash Flow: $${cash_flow.toFixed(2)}`
-      //   )
-      //   .join('\n\n');
-
-      const formatCashFlowProjection: any = {};
-
-      for (const projection of advancedProjections) {
-        formatCashFlowProjection['cash_flow_year_' + projection.year] =
-          projection.cash_flow;
-      }
-      for (const projection of advancedProjections) {
-        formatCashFlowProjection['revenue_year_' + projection.year] =
-          projection.revenue;
-      }
-      for (const projection of advancedProjections) {
-        formatCashFlowProjection['expenses_year_' + projection.year] =
-          projection.expenses;
-      }
-
-      const reportData = [
-        {
-          roi,
-          dscr,
-          npv,
-          irr,
-          break_even_revenue,
-          payback_period,
-          gross_profit_margin,
-          net_profit_margin,
-          equity_multiple,
-          sde_multiple,
-          cash_flow_after_purchase,
-          yearly_debt_payments,
-          sellerLoadPayment,
-          cash_flow_projection: cash_flow_projection.join(', '),
-          growth_rate_pessimistic: growth_rate_pessimistic,
-          npv_low_pessimistic: npv_low_pessimistic,
-          npv_medium_pessimistic: npv_medium_pessimistic,
-          npv_high_pessimistic: npv_high_pessimistic,
-          growth_rate_base: growth_rate_base,
-          npv_low_base: npv_low_base,
-          pv_medium_base: npv_medium_base,
-          npv_high_base: npv_high_base,
-          growth_rate_optimistic: growth_rate_optimistic,
-          npv_low_optimistic: npv_low_optimistic,
-          npv_medium_optimistic: npv_medium_optimistic,
-          npv_high_optimistic: npv_high_optimistic,
-          ...formatCashFlowProjection,
-        },
-      ];
-
-      if (reportFormat === 'csv' || reportFormat === 'excel') {
-        downloadExcel(
-          reportData,
-          `business_report.${reportFormat === 'excel' ? 'xlsx' : 'csv'}`
+  const renderCard = (id: string) => {
+    switch (id) {
+      case "currentCashflow":
+        return (
+          <Card
+            value={state.currentCashflow}
+            onSave={(value) => updateState("currentCashflow", value)}
+          >
+            <CurrentCashflow
+              updateNotes={updateNotes}
+              state={state}
+              updateState={updateState}
+            />
+          </Card>
         );
-      } else if (reportFormat === 'pdf') {
-        generatePDF(reportData);
-      }
+      case "expectedSalary":
+        return (
+          <Card
+            value={state.expectedSalary}
+            onSave={(value) => updateState("expectedSalary", value)}
+          >
+            <ExpectedSalary
+              updateNotes={updateNotes}
+              state={state}
+              updateState={updateState}
+            />
+          </Card>
+        );
+      case "grossRevenue":
+        return (
+          <Card
+            value={state.grossRevenue}
+            onSave={(value) => updateState("grossRevenue", value)}
+          >
+            <GrossRevenue
+              updateNotes={updateNotes}
+              state={state}
+              updateState={updateState}
+            />
+          </Card>
+        );
+      case "askingPrice":
+        return (
+          <Card
+            value={state.askingPrice}
+            onSave={(value) => updateState("askingPrice", value)}
+          >
+            <AskingPrice
+              updateNotes={updateNotes}
+              state={state}
+              updateState={updateState}
+            />
+          </Card>
+        );
+      case "sde":
+        return (
+          <Card value={state.sde} onSave={(value) => updateState("sde", value)}>
+            <SDE updateNotes={updateNotes} state={state} updateState={updateState} />
+          </Card>
+        );
+      case "DSCRCalculator":
+        return (
+          <Card value={state.sde} onSave={(value) => updateState("sde", value)}>
+            <DSCRCalculator state={state} updateState={updateState} updateNotes={updateNotes} />
+          </Card>
+        );
+      case "ProjectedCashflow":
+        return (
+          <Card
+            value={state.projectedCashflow}
+            onSave={(value) => updateState("projectedCashflow", value)}
+          >
+            <ProjectedCashflow state={state} updateState={updateState} updateNotes={updateNotes} />
+          </Card>
+        );
+      case "GrossMultiple":
+        return (
+          <Card value={state.sde} onSave={(value) => updateState("sde", value)}>
+            <GrossMultiple state={state} updateState={updateState} updateNotes={updateNotes} />
+          </Card>
+        );
+      case "SDEMultiple":
+        return (
+          <Card value={state.sde} onSave={(value) => updateState("sde", value)}>
+            <SDEMultiple state={state} updateState={updateState} updateNotes={updateNotes} />
+          </Card>
+        );
+      case "SBALoanPayment":
+        return (
+          <Card
+            value={state.sbaLoanPayment}
+            onSave={(value) => updateState("sbaLoanPayment", value)}
+          >
+            <SBALoanPayment
+              updateLoanSba={updateLoanSba}
+              state={state}
+              updateState={updateState} updateNotes={updateNotes}
+            />
+          </Card>
+        );
+      case "AdditionalLoanPayment":
+        return (
+          <Card
+            value={state.additionalLoanPayment}
+            onSave={(value) => updateState("additionalLoanPayment", value)}
+          >
+            <AdditionalLoanPayment
+              updateAdditionalLoan={updateLoanAdditionalLoan}
+              state={state}
+              updateState={updateState} updateNotes={updateNotes}
+            />
+          </Card>
+        );
+      case "TotalDebtPayments":
+        return (
+          <Card
+            value={state.totalDebtPayments}
+            onSave={(value) => updateState("totalDebtPayments", value)}
+          >
+            <TotalDebtPayments state={state} updateState={updateState} updateNotes={updateNotes} />
+          </Card>
+        );
+      case "ProjectedNetProfitMargin":
+        return (
+          <Card value={state.sde} onSave={(value) => updateState("sde", value)}>
+            <ProjectedNetProfitMargin state={state} updateState={updateState} updateNotes={updateNotes} />
+          </Card>
+        );
+      case "customMetric":
+        return (
+          <Card value={state.sde} onSave={(value) => updateState("sde", value)}>
+            <MetricCard
+              state={customMetrics[0]}
+              updateMetric={setCustomMetrics}
+              deleteCard={(name) => {
+                setHasChanges(true);
+                setCustomMetrics(
+                  customMetrics.filter((metric) => metric.metricName !== name)
+                );
+              }}
+            />
+          </Card>
+        );
+      default:
+        return null;
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] pb-6">
-      <ToastContainer />
-      <div className="pt-6 sm:mx-[60px] mx-[30px] flex justify-between items-center">
-        <h1 className="text-[#272727] sm:text-[24px] sm:leading-[36px] font-medium">
-          Business Evaluations
-        </h1>
-        <div className="flex gap-2 items-center">
-          <button
-            onClick={() => navigate('/')}
-            className="bg-[#272727] text-white font-medium px-4 py-3 rounded-[10px]"
-          >
-            Evaluate business
-          </button>
-          {user_id && token && (
+    <div className="app-container min-h-screen bg-blue-100 ">
+      <TopBar state={state} data={businessData?.data} />
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="metrics-grid">
+          {(provided) => (
             <div
-              onClick={toggleDropdown}
-              className="border-[2px] border-black rounded-full cursor-pointer"
-            >
-              <img className="p-2" src={user} alt="" />
-            </div>
-          )}
-
-          {dropdownOpen && (
-            <div className="absolute right-10 top-[70px] mt-2 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-              <button
-                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left font-semibold"
-                onClick={handleLogout}
-              >
-                Logout
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="flex justify-between mx-[60px] mt-[25px]">
-        <div className="">
-          <h1 className="text-[#3B37FF] text-[26px] leading-[24px] font-bold">
-            {business?.business?.data?.business_name}
-          </h1>
-          <div
-            onClick={openModal}
-            className="flex items-center gap-1 mt-1 cursor-pointer"
-          >
-            <h3>Edit values</h3>
-            <RiPencilFill className="text-[#2B3674] text-[20px]" />
-          </div>
-        </div>
-        <CustomModal
-          isOpen={isModalOpen}
-          onClose={closeModal}
-          onSave={handleSave}
-        >
-          <div>
-            <h2 className="text-[24px] leading-[36px] font-normal mb-[8px]">
-              Business Information
-            </h2>
-            <div className="grid grid-cols-4 gap-5">
-              <div>
-                <label className="text-[#A3AED0] text-sm" htmlFor="">
-                  Business Name
-                </label>
-                <input
-                  className="bg-[#3B37FF0D]/5 px-[15px] py-[17px] border border-[#3B37FF2B]/15 rounded-[10px] w-full placeholder:text-[#8F8F8F] placeholder:text-[14px] focus:outline-none"
-                  placeholder="Business Name"
-                  type="text"
-                  name="business_name"
-                  value={formData.business_name}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div>
-                <label className="text-[#A3AED0] text-sm" htmlFor="">
-                  Listing price ($)
-                </label>
-                <input
-                  className="bg-[#3B37FF0D]/5 px-[15px] py-[17px] border border-[#3B37FF2B]/15 rounded-[10px] w-full placeholder:text-[#8F8F8F] placeholder:text-[14px] focus:outline-none"
-                  placeholder="Listing price ($)"
-                  type="text"
-                  name="business_listing_price"
-                  value={formData.business_listing_price}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div>
-                <label className="text-[#A3AED0] text-sm" htmlFor="">
-                  Gross Revenue ($)
-                </label>
-                <input
-                  className="bg-[#3B37FF0D]/5 px-[15px] py-[17px] border border-[#3B37FF2B]/15 rounded-[10px] w-full placeholder:text-[#8F8F8F] placeholder:text-[14px] focus:outline-none"
-                  placeholder="Gross Revenue ($)"
-                  type="text"
-                  name="business_gross_revenue"
-                  value={formData.business_gross_revenue}
-                  onChange={handleInputChange}
-                />
-              </div>
-              <div>
-                <label className="text-[#A3AED0] text-sm" htmlFor="">
-                  SDE / Cash flow ($)
-                </label>
-                <input
-                  className="bg-[#3B37FF0D]/5 px-[15px] py-[17px] border border-[#3B37FF2B]/15 rounded-[10px] w-full placeholder:text-[#8F8F8F] placeholder:text-[14px] focus:outline-none"
-                  placeholder="SDE / Cash flow ($)"
-                  type="text"
-                  name="business_cash_flow"
-                  value={formData.business_cash_flow}
-                  onChange={handleInputChange}
-                />
-              </div>
-            </div>
-          </div>
-          <div className="mt-[30px]">
-            <h2 className="text-[24px] leading-[36px] font-normal mb-[8px]">
-              Financing Information
-            </h2>
-            <div className="flex flex-col">
-              <label className="text-[#A3AED0] text-sm" htmlFor="">
-                Down Payment
-              </label>
-              <div>
-                <input
-                  className="bg-[#3B37FF0D]/5 px-[15px] py-[17px] border border-[#3B37FF2B]/15 rounded-[10px] min-w-[400px] placeholder:text-[#8F8F8F] placeholder:text-[14px] focus:outline-none"
-                  placeholder="Down Payment"
-                  type="text"
-                  name="loan_down_payment"
-                  value={formData.loan_down_payment}
-                  onChange={handleInputChange}
-                />
-              </div>
-            </div>
-            <div>
-              <h3 className="text-[16px] font-medium mt-4 mb-[2px]">
-                SBA Loan Details
-              </h3>
-              <div className="grid grid-cols-3 gap-5">
-                <div>
-                  <label className="text-[#A3AED0] text-sm" htmlFor="">
-                    Loan Amount
-                  </label>
-                  <input
-                    className="bg-[#3B37FF0D]/5 px-[15px] py-[17px] border border-[#3B37FF2B]/15 rounded-[10px] w-full placeholder:text-[#8F8F8F] placeholder:text-[14px] focus:outline-none"
-                    placeholder="Loan Amount"
-                    type="text"
-                    name="loan_sba_amount"
-                    value={formData.loan_sba_amount}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div>
-                  <label className="text-[#A3AED0] text-sm" htmlFor="">
-                    Loan Interest (%)
-                  </label>
-                  <input
-                    className="bg-[#3B37FF0D]/5 px-[15px] py-[17px] border border-[#3B37FF2B]/15 rounded-[10px] w-full placeholder:text-[#8F8F8F] placeholder:text-[14px] focus:outline-none"
-                    placeholder="Loan Interest (%)"
-                    type="text"
-                    name="loan_sba_rate"
-                    value={formData.loan_sba_rate}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div>
-                  <label className="text-[#A3AED0] text-sm" htmlFor="">
-                    Loan term (in yrs)
-                  </label>
-                  <input
-                    className="bg-[#3B37FF0D]/5 px-[15px] py-[17px] border border-[#3B37FF2B]/15 rounded-[10px] w-full placeholder:text-[#8F8F8F] placeholder:text-[14px] focus:outline-none"
-                    placeholder="Loan term (in yrs)"
-                    type="text"
-                    name="loan_sba_term"
-                    value={formData.loan_sba_term}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="mt-[10px]">
-              <h3 className="text-[16px] font-medium mt-4 mb-[2px]">
-                Seller Loan Details
-              </h3>
-              <div className="grid grid-cols-3 gap-5">
-                <div>
-                  <label className="text-[#A3AED0] text-sm" htmlFor="">
-                    Loan Amount
-                  </label>
-                  <input
-                    className="bg-[#3B37FF0D]/5 px-[15px] py-[17px] border border-[#3B37FF2B]/15 rounded-[10px] w-full placeholder:text-[#8F8F8F] placeholder:text-[14px] focus:outline-none"
-                    placeholder="Loan Amount"
-                    type="text"
-                    name="loan_seller_amount"
-                    value={formData.loan_seller_amount}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div>
-                  <label className="text-[#A3AED0] text-sm" htmlFor="">
-                    Loan Interest (%)
-                  </label>
-                  <input
-                    className="bg-[#3B37FF0D]/5 px-[15px] py-[17px] border border-[#3B37FF2B]/15 rounded-[10px] w-full placeholder:text-[#8F8F8F] placeholder:text-[14px] focus:outline-none"
-                    placeholder="Loan Interest (%)"
-                    type="text"
-                    name="loan_seller_rate"
-                    value={formData.loan_seller_rate}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div>
-                  <label className="text-[#A3AED0] text-sm" htmlFor="">
-                    Loan term (in yrs)
-                  </label>
-                  <input
-                    className="bg-[#3B37FF0D]/5 px-[15px] py-[17px] border border-[#3B37FF2B]/15 rounded-[10px] w-full placeholder:text-[#8F8F8F] placeholder:text-[14px] focus:outline-none"
-                    placeholder="Loan term (in yrs)"
-                    type="text"
-                    name="loan_seller_term"
-                    value={formData.loan_seller_term}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </div>
-            </div>
-            <div>
-              <h2 className="text-[24px] leading-[36px] font-normal my-[8px]">
-                Assumptions
-              </h2>
-              <div className="grid grid-cols-2 gap-5">
-                <div>
-                  <label className="text-[#A3AED0] text-sm" htmlFor="">
-                    Desired Owner Salary ($)
-                  </label>
-                  <input
-                    className="bg-[#3B37FF0D]/5 px-[15px] py-[17px] border border-[#3B37FF2B]/15 rounded-[10px] w-full placeholder:text-[#8F8F8F] placeholder:text-[14px] focus:outline-none"
-                    placeholder="Desired Owner Salary ($)"
-                    type="text"
-                    name="desired_owner_salary"
-                    value={formData.desired_owner_salary}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div>
-                  <label className="text-[#A3AED0] text-sm" htmlFor="">
-                    Additional Capital Expense ($)
-                  </label>
-                  <input
-                    className="bg-[#3B37FF0D]/5 px-[15px] py-[17px] border border-[#3B37FF2B]/15 rounded-[10px] w-full placeholder:text-[#8F8F8F] placeholder:text-[14px] focus:outline-none"
-                    placeholder="Additional Capital Expense ($)"
-                    type="text"
-                    name="additional_capital_expenses"
-                    value={formData.additional_capital_expenses}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div>
-                  <label className="text-[#A3AED0] text-sm" htmlFor="">
-                    Additional Startup Capital ($)
-                  </label>
-                  <input
-                    className="bg-[#3B37FF0D]/5 px-[15px] py-[17px] border border-[#3B37FF2B]/15 rounded-[10px] w-full placeholder:text-[#8F8F8F] placeholder:text-[14px] focus:outline-none"
-                    placeholder="Additional Startup Capital ($)"
-                    type="text"
-                    name="additional_startup_capital"
-                    value={formData.additional_startup_capital}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div>
-                  <label className="text-[#A3AED0] text-sm" htmlFor="">
-                    Expected Annual Growth Rate (%)
-                  </label>
-                  <input
-                    className="bg-[#3B37FF0D]/5 px-[15px] py-[17px] border border-[#3B37FF2B]/15 rounded-[10px] w-full placeholder:text-[#8F8F8F] placeholder:text-[14px] focus:outline-none"
-                    placeholder="Expected Annual Growth Rate (%)"
-                    type="text"
-                    name="expected_annual_growth_rate"
-                    value={formData.expected_annual_growth_rate}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </CustomModal>
-        <div className="flex gap-2 items-center">
-          <div>
-            <button
-              onClick={() => {
-                if (user_id && token) navigate('/compare-results');
-                else navigate('/login');
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              style={{
+                backgroundColor: "#E3F2FD", // Tailwind gray-300
+                borderRadius: "12px", // Rounded corners
+                padding: "16px", // Padding for spacing
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                gap: "12px",
+                minHeight: "100px",
               }}
-              className="text-[#3B37FF] font-medium px-2 py-[10px] rounded-[10px] border-[#3B37FF] border text-sm"
+              className="shadow-sm"
             >
-              Dashboard
-            </button>
-          </div>
+              {metricCards
+                .filter(
+                  (card) =>
+                    ![
+                      "sba_loan_amount",
+                      "sba_loan_rate",
+                      "sba_loan_term",
+                      "additional_debt",
+                      "additional_loan_amount",
+                      "additional_loan_rate",
+                      "additional_loan_term",
+                      "growth_rate",
+                    ].includes(card.id)
+                )
+                .map((card, index) => (
+                  <Draggable key={card.id} draggableId={card.id} index={index}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        style={{
+                          ...provided.draggableProps.style,
+                          opacity: snapshot.isDragging ? 0.8 : 1,
+                          // backgroundColor: "#FFFFFF", // White card background
+                          borderRadius: "8px", // Card corners
+                          // padding: "8px",
+                          // boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                        }}
+                      >
+                        {renderCard(card.id)}
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
 
-          <div className="space-x-2 flex items-center">
-            <button
-              className="bg-[#3B37FF] text-[#ffff] font-medium px-4 py-3 rounded-[10px] text-sm"
-              onClick={handleGenerateReport}
-              disabled={isLoading}
-            >
-              {isLoading ? 'Generating...' : 'Generate Report'}
-            </button>
-            <select
-              value={reportFormat}
-              onChange={(e) => setReportFormat(e.target.value)}
-              className="mb-3 mt-3 border border-[#3B37FF] rounded-[10px] px-2 py-2 text-[#3B37FF] text-sm"
-            >
-              <option value="csv">CSV</option>
-              <option value="excel">Excel</option>
-              <option value="pdf">PDF</option>
-            </select>
-          </div>
-        </div>
-      </div>
-      <div className="mt-[22px] grid sm:grid-cols-7 mx-[60px] gap-[8px]">
-        {[
-          {
-            title: 'ROI',
-            subtitle: 'Return on Investment',
-            value: `$ ${business?.business?.metrics?.roi || 0}`,
-          },
-          {
-            title: 'DSCR',
-            subtitle: 'Debt Service Coverage Ratio',
-            value: business?.business?.metrics?.dscr || 0,
-          },
-          {
-            title: 'Net Profit Margins',
-            subtitle: 'Post Purchase',
-            value: `${business?.business?.metrics?.net_profit_margin || 0} %`,
-          },
-          {
-            title: 'Break-even Point',
-            subtitle: '',
-            value: `${business?.business?.metrics?.break_even_revenue || 0}x`,
-          },
-          {
-            title: 'Payback Period',
-            subtitle: '',
-            value: `${business?.business?.metrics?.payback_period || 0} years`,
-          },
-          {
-            title: 'Equity Multiple',
-            subtitle: '',
-            value: `${business?.business?.metrics?.equity_multiple?.toString().slice(0, 4) || 0}x`,
-          },
-          {
-            title: 'SDE Multiple',
-            subtitle: '',
-            value: `${business?.business?.metrics?.sde_multiple || 0}x`,
-          },
-        ].map((metric, idx) => (
-          <div
-            key={idx}
-            className="flex flex-col justify-center h-full p-[20px] bg-[#2B3674] rounded-[15px]"
-          >
-            <div>
-              <h3 className="text-[16px] text-[#FFFFFF] font-semibold leading-[24px]">
-                {metric.title}
-              </h3>
-              {metric.subtitle && (
-                <p className="text-[#A3AED0] text-xs font-medium">
-                  {metric.subtitle}
-                </p>
-              )}
+              {customMetrics.map((card, index) => (
+                <Draggable
+                  key={card.metricName}
+                  draggableId={card.metricName}
+                  index={index}
+                >
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      {...provided.dragHandleProps}
+                      style={{
+                        ...provided.draggableProps.style,
+                        opacity: snapshot.isDragging ? 0.8 : 1,
+                        // backgroundColor: "#FFFFFF", // White card background
+                        borderRadius: "8px", // Card corners
+                        // padding: "8px",
+                        // boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                      }}
+                    >
+                      <Card
+                        value={state.sde}
+                        onSave={(value) => updateState("sde", value)}
+                      >
+                        <MetricCard
+                          state={customMetrics[index]}
+                          updateMetric={setCustomMetrics}
+                          deleteCard={(name) => {
+                            setHasChanges(true);
+                            setCustomMetrics(
+                              customMetrics.filter(
+                                (metric) => metric.metricName !== name
+                              )
+                            );
+                          }}
+                        />
+                      </Card>
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+
+              {provided.placeholder}
             </div>
-            <h3 className="text-[#FFFFFF] text-[20px] leading-[32px] font-bold">
-              {metric.value}
-            </h3>
-          </div>
-        ))}
-      </div>
-      <div className="grid sm:grid-cols-2 sm:mx-[60px] my-6 gap-6">
-        <div className="col-span-1">
-          <div className="sm:p-3">
-            <LineChartCard chartData={LineChartData} />
-          </div>
-          <div className="mt-4">
-            <CashflowChart data={cashFlowChartData} />
-          </div>
+          )}
+        </Droppable>
+      </DragDropContext>
+
+      <div className="flex justify-between mx-4 mt-4 pb-3">
+        {/* <Button className="bg-blue-500 text-white" onClick={() => setReportModalOpen(true)}>Download Report</Button>
+       <NotesComponent state={state} updateState={updateState} />
+        */}
+        <div>
+        <Card value={0} onSave={(value) => updateState("customMetric", value)}>
+          <CustomMetric
+            customMetrics={customMetrics}
+            setCustomMetrics={setCustomMetrics}
+            setHasChanges={setHasChanges}
+            state={state}
+            updateState={updateState}
+          />
+        </Card></div>
+        <div>
+        {(hasChanges || isUnAdded) && (
+          <Button className="bg-green-500 text-white" onClick={handleSave}>
+            Save Changes
+          </Button>
+        )}
+        <ToastContainer />
         </div>
-        <div className="col-span-1">
-          <div className="mt-3">
-            <BarChartComponent chartData={chartData} />
-          </div>
-          <div className="mt-8">
-            <DataTable data={sensitivityAnalysis} />
-          </div>
-        </div>
       </div>
+      {reportModalOpen && (
+        <ReportModal data={state} close={() => setReportModalOpen(false)} />
+      )}
     </div>
   );
-}
+};
 
-export default Dashboard;
+export default App;

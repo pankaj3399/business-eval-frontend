@@ -28,7 +28,7 @@ const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await axios.post(`${API_URL}/user/register`, userData);
-      const user_id = response.data._id;
+      const user_id = response.data.user._id;
       localStorage.setItem('user_id', user_id);
       localStorage.setItem('token', response.data.token);
       set({ isLoading: false, user: response.data });

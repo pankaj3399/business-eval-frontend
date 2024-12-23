@@ -18,7 +18,7 @@ const Login = () => {
     try {
       await login(data);
       toast.success('Login successful!');
-      navigate('/');
+      navigate('/addbusiness');
     } catch (err) {
       toast.error(error);
       console.error(err);
@@ -29,7 +29,7 @@ const Login = () => {
     <div className="flex flex-col min-h-screen bg-[#FAFAFA] px-4 sm:px-6 md:px-8">
       <div className="ml-auto">
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate(`/addbusiness`)}
           className="w-[110px] mt-[24px] sm:mt-[30px] py-3 bg-[#3B37FF] text-white font-medium rounded-[8px] sm:rounded-[10px] hover:bg-blue-700 transition-colors"
         >
           Skip
@@ -87,12 +87,12 @@ const Login = () => {
               </span>
             </div>
             <div className="text-right mt-[8px] sm:mt-[12px]">
-              <span
+              {/* <span
                 onClick={() => navigate('/reset-password')}
                 className="text-[#3B37FF] cursor-pointer hover:underline text-sm sm:text-base"
               >
                 Forgot Password?
-              </span>
+              </span> */}
             </div>
             <button
               type="submit"

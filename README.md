@@ -1,55 +1,35 @@
-# Starter template for all react projects
-This is to be used as a template for all react based projects. How the configuration was chosen can be read here: [Article](https://blog.stackademic.com/crafting-the-perfect-react-project-a-comprehensive-guide-to-directory-structure-and-essential-9bb0e32ba7aa)
 
-## Directory structure
-The following directory structure is to be strictly followed for a clean organization of code
+# Business Evaluation Frontend
 
-For understanding the component classification, please refer [atomic design methodology](https://atomicdesign.bradfrost.com/chapter-2/)
+A React frontend project configured with Vite, leveraging `.env` for environment-specific configurations.
 
+---
+
+## 🛠️ Getting Started
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/MayankChandratre1/business_app.git
+cd business_app
 ```
-src
-├── assets
-│   └── react.svg
-├── components
-│   ├── atoms
-│   │   └── atom-name
-│   │       └── index.tsx
-│   ├── molecules
-│   │   └── molecule-name
-│   │       └── index.tsx
-│   ├── organisms
-│   │   └── organism-name
-│   │       └── index.tsx
-│   └── templates
-│       └── template-name
-│           └── index.tsx
-├── layouts
-│   ├── container
-│   │   └── index.tsx
-│   └── header-footer
-│       └── index.tsx
-├── constants
-│   ├── local-storage-keys.ts
-│   └── query-keys.ts
-├── hooks
-│   └── use-debounce.ts
-├── queries (react-query | queries/mutations)
-│   └── query.ts
-├── routes
-│   └── index.tsx
-├── stores
-│   └── global-store.ts
-├── utils
-│   └── parse-data.tsx
-├── wrappers
-│   └── auth-wrapper.tsx
-├── vite-env.d.ts
-├── main.tsx
-└── index.css
- ```
 
-## Libraries to be used when deemed necessary
-- <b>Zustand</b> for state management
-- <b>React Query</b> for data fetching
-- <b>Zod</b> for form data validation 
-- <b>React Hook Form</b> for form state and plugin zod for validation
+### 2. Install Dependencies
+```bash
+npm install
+```
+
+### 3. Configure Environment Variables
+Create a `.env` file in the root directory with the following content:
+
+```env
+VITE_API_URL=<backend-url>
+```
+
+This sets the base URL for API requests. Update it based on your environment.
+
+### 4. Start the Development Server
+```bash
+npm run dev
+```
+
+The app will be available at `http://localhost:5173`.

@@ -21,7 +21,7 @@ const Signup = () => {
         console.log('Signup successful', result);
         toast.success('Signup successful!');
         reset();
-        navigate('/');
+        navigate('/addbusiness');
       }
     } catch (err) {
       toast.error(error);

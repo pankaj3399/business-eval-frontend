@@ -13,6 +13,7 @@ interface BusinessState {
   fetchBusiness: (businessId: string) => Promise<any>;
   fetchAllBusiness: () => Promise<any>;
   deleteBusiness: (businessId: string) => Promise<any>;
+  uploadFile: (businessId: string, file: File) => Promise<any>;
 }
 
 const useBusinessStore = create<BusinessState>((set) => ({
@@ -27,7 +28,7 @@ const useBusinessStore = create<BusinessState>((set) => ({
       const userId = localStorage.getItem('user_id');
       const businessPayload = {
         ...businessData,
-        // user_id: userId,
+        user_id: userId,
       };
 
       if (userId) {
@@ -124,6 +125,25 @@ const useBusinessStore = create<BusinessState>((set) => ({
       throw new Error(errorMessage);
     }
   },
+
+  uploadFile: async (businessId: string, file: File) => {
+    set({ isLoading: true, error: null });
+    try {
+      // Step 1: Get the pre-signed URL
+      const formData = new FormData();  
+      formData.append('file', file);
+      const presignedResponse = await axios.post(`${API_URL}/business/upload/${businessId}`, formData);
+      const { fileUrl } = presignedResponse.data;
+  
+      set({ isLoading: false });
+      return fileUrl;
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || "Failed to upload file";
+      set({ isLoading: false, error: errorMessage });
+      throw new Error(errorMessage);
+    }
+  }  
+  
 }));
 
 export default useBusinessStore;
